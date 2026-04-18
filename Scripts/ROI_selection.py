@@ -1,28 +1,40 @@
-
 import tkinter as tk
 from tkinter import filedialog
 import cv2
 from PIL import Image, ImageTk
+
+BG = "#0f1117"
+PANEL = "#1a1d27"
+CARD = "#22263a"
+ACCENT = "#00d4aa"
+TEXT = "#e8eaf0"
+MUTED = "#6b7280"
 
 class ROIselector:
 
     def __init__(self, root):
         self.root = root
         self.root.title("ROI Selector")
-        container = tk.Frame(root)
-        container.pack(fill="both", expand=True)
+        container = tk.Frame(root, bg=PANEL, height=50)
+        container.pack(fill="x", expand=True)
+        tk.Label(container, text="ROI Analyzer",
+            bg=PANEL, fg=ACCENT,
+            font=("Segoe UI", 14, "bold")).pack(padx=10, pady=10, anchor="w")
 
+        main = tk.Frame(self.root, bg=BG, height=50)
+        main.pack(fill="both", expand=True)
         # Canvas izquierda (imagen)
         self.canvas = tk.Canvas(container, cursor="cross", bg="black")
-        self.canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
         # Canvas i (ROI)
         self.roi_canvas = tk.Canvas(container, bg="gray")
-        self.roi_canvas.pack(side="right", fill="both", expand=True)
+        self.roi_canvas.pack(side="right", fill="both", expand=True, padx=5, pady=5)
 
 
-        self.btn = tk.Button(root, text="Load Image", command=self.load_image)
-        self.btn.pack(fill="x", padx=12, pady=4)
+        self.btn = tk.Button(root, text="Load Image",bg=ACCENT,fg="black",font=("Segoe UI", 10, "bold" ), relief="flat",
+                                padx=10, pady=5,cursor="hand2", command=self.load_image)
+        self.btn.pack(pady=10, padx=10, fill="x")
 
         self.image = None
         self.tk_image = None
@@ -55,16 +67,25 @@ class ROIselector:
 
         scale = min(self_canvas_w / w, self_canvas_h / h, 1)
 
-        resized = cv2.resize(img, (self_canvas_w, self_canvas_h), interpolation=cv2.INTER_AREA)
+        new_w  = int(w * scale)
+        new_h  = int(h * scale)
 
-        self.display_scale = scale 
+        resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        self.display_scale = scale
+
+        # ✅ offset = margen para centrar la imagen dentro del canvas
+        self.img_offset_x = (self_canvas_w - new_w) // 2
+        self.img_offset_y = (self_canvas_h - new_h) // 2
 
         pil_img = Image.fromarray(resized)
         self.tk_image = ImageTk.PhotoImage(pil_img)
-        cx = self_canvas_w // 2
-        cy = self_canvas_h // 2
-        self.canvas.create_image(cx, cy, anchor="center", image=self.tk_image)
-        
+
+        self.canvas.delete("all")   # limpia antes de redibujar
+        # ✅ una sola create_image, anclada en nw con el offset calculado
+        self.canvas.create_image(self.img_offset_x, self.img_offset_y,
+                                  anchor="nw", image=self.tk_image)
+
+
     def on_click(self, event):
         self.start_x = event.x
         self.start_y = event.y
@@ -84,11 +105,14 @@ class ROIselector:
 
     def on_release(self, event):
         end_x, end_y = event.x, event.y
-        x1 = int(min(self.start_x, end_x) / self.display_scale)
-        y1 = int(min(self.start_y, end_y) / self.display_scale)
-        x2 = int(max(self.start_x, end_x) / self.display_scale)
-        y2 = int(max(self.start_y, end_y) / self.display_scale)
+        x1 = int((min(self.start_x, end_x) - self.img_offset_x) / self.display_scale)
+        y1 = int((min(self.start_y, end_y) - self.img_offset_y) / self.display_scale)
+        x2 = int((max(self.start_x, end_x) - self.img_offset_x) / self.display_scale)
+        y2 = int((max(self.start_y, end_y) - self.img_offset_y) / self.display_scale)
+
+        
         h, w = self.image.shape[:2]
+        
         x1, x2 = max(0, x1), min(w, x2)
         y1, y2 = max(0, y1), min(h, y2)
         roi = self.image[y1:y2, x1:x2]
@@ -101,10 +125,11 @@ class ROIselector:
         
         h, w = roi.shape[:2]
 
-        scale = min(roi_canvas_w / w, roi_canvas_h / h, 1)
-
-        self.display_scale = scale 
-        resized = cv2.resize(roi, (roi_canvas_w, roi_canvas_h), interpolation=cv2.INTER_AREA)
+        roi_scale = min(roi_canvas_w / w, roi_canvas_h / h, 1)
+        new_w = int(w * roi_scale)
+        new_h = int(h * roi_scale)
+        
+        resized = cv2.resize(roi, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         pil_img = Image.fromarray(resized)
         self.tk_roi = ImageTk.PhotoImage(pil_img)
@@ -115,7 +140,6 @@ class ROIselector:
         self.roi_canvas.create_image(cx, cy, anchor="center", image=self.tk_roi)
 
         
-
 if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("1200x660")
