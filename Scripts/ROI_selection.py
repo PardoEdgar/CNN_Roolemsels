@@ -1,9 +1,16 @@
 import tkinter as tk
 from tkinter import filedialog
 import cv2
+import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
 import os
 from pathlib import Path
+import numpy as np
+import segmentation_models_pytorch as smp
+import torch
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
 BG = "#0f1117"
 PANEL = "#1a1d27"
 CARD = "#22263a"
@@ -16,32 +23,45 @@ class ROIselector:
     def __init__(self, root):
         self.root = root
         self.root.title("ROI Selector")
-        container = tk.Frame(root, bg=PANEL, height=50)
-        container.pack(fill="x", expand=True)
+        
+        container = tk.Frame(root, bg=PANEL)
+        container.pack(fill="x")
         tk.Label(container, text="ROI Analyzer",
             bg=PANEL, fg=ACCENT,
             font=("Segoe UI", 14, "bold")).pack(padx=10, pady=10, anchor="w")
 
-        main = tk.Frame(self.root, bg=BG, height=50)
-        main.pack(fill="both", expand=True)
+        
+        main = tk.Frame(self.root, bg=BG)
+        main.pack(fill="both", expand=True, padx=5, pady=5)
+        
         # Canvas izquierda (imagen)
-        self.canvas = tk.Canvas(container, cursor="cross", bg="black")
+        self.canvas = tk.Canvas(main, cursor="cross", bg="black")
         self.canvas.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
-        # Canvas i (ROI)
-        self.roi_canvas = tk.Canvas(container, bg="gray")
-        self.roi_canvas.pack(side="right", fill="both", expand=True, padx=5, pady=5)
+    
+        # Canvas ROI
+        self.roi_canvas = tk.Canvas(main, bg="gray")
+        self.roi_canvas.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
+        # Segmented Canvas 
+        self.segmented_canvas = tk.Canvas(main, cursor="cross", bg="black")
+        self.segmented_canvas.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
-        self.btn = tk.Button(root, text="Load Image",bg=ACCENT,fg="black",font=("Segoe UI", 10, "bold" ), relief="flat",
+        btn_frame = tk.Frame(root, bg=BG)
+        btn_frame.pack(fill="x", padx=10, pady=8)
+
+        self.btn = tk.Button(btn_frame, text="Load Image",bg=ACCENT,fg="black",font=("Segoe UI", 10, "bold" ), relief="flat",
                                 padx=40, pady=5,cursor="hand2", command=self.load_image)
         self.btn.pack(side="left",pady=10, padx=40, fill="x")
 
-        self.btn_2 = tk.Button(root, text="save Image",bg=ACCENT,fg="black",font=("Segoe UI", 10, "bold" ), relief="flat",
+        self.btn_2 = tk.Button(btn_frame, text="save Image",bg=ACCENT,fg="black",font=("Segoe UI", 10, "bold" ), relief="flat",
                                 padx=40, pady=5,cursor="hand2", command=self.save_ROI)
-        self.btn_2.pack(side="right",pady=10, padx=40, fill="x")
+        self.btn_2.pack(side="left",pady=10, padx=40, fill="x")
 
-
+        self.btn_3 = tk.Button(btn_frame, text="Segment",bg=ACCENT,fg="black",font=("Segoe UI", 10, "bold" ), relief="flat",
+                                padx=40, pady=5,cursor="hand2", command=self.show_segmented)
+        self.btn_3.pack(side="left",pady=10, padx=40, fill="x")
+        
         self.image = None
         self.tk_image = None
 
@@ -50,6 +70,7 @@ class ROIselector:
         self.rect = None
 
         self.current_roi= None
+        self.image_path = None
 
         # Eventos
         self.canvas.bind("<ButtonPress-1>", self.on_click)
@@ -154,7 +175,79 @@ class ROIselector:
         filepath = os.path.join(directory, filepath)
         cv2.imwrite(filepath, self.current_roi)
         print(f"image{name} saved")
+    @staticmethod  
+    def build_model():
+        return smp.Unet(
+            encoder_name    = "resnet34",
+            encoder_weights = "imagenet",
+            in_channels     = 3,
+            classes         = 1,
+            activation      = None,
+        )
+    
+    def segmented(self, model_path=r"C:\Users\jandr\OneDrive - Universidad del rosario\Gui_xylem\xylem_unet.pth", threshold=0.5):    
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        model = self.build_model().to(device)
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+
+        img = self.current_roi.copy()   
+        if img.dtype == np.uint16:
+            img = (img / 256).astype(np.uint8)
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         
+
+        h, w = img.shape[:2]
+
+        tf  = A.Compose([A.Resize(512, 512), A.Normalize(), ToTensorV2()])
+        inp = tf(image=img)["image"].unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            prob = torch.sigmoid(model(inp))[0, 0].cpu().numpy()
+
+        # Devuelve al tamaño original
+        prob_full = cv2.resize(prob, (w, h))
+        mask      = (prob_full > threshold).astype(np.uint8)
+
+        # Overlay: vasos en verde sobre la imagen
+        overlay = img.copy()
+        overlay[mask == 1] = [0, 220, 120]
+        blended = cv2.addWeighted(img, 0.6, overlay, 0.4, 0)
+
+    #    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    #    axes[0].imshow(img);         axes[0].set_title("Original");         axes[0].axis("off")
+    #    axes[1].imshow(mask, cmap="gray"); axes[1].set_title("Predicted mask"); axes[1].axis("off")
+    #    axes[2].imshow(blended);     axes[2].set_title("Overlay");          axes[2].axis("off")
+    #    plt.tight_layout()
+    #    plt.show()
+
+        return blended
+    
+    def show_segmented(self):
+        blended = self.segmented()
+        segmented_canvas_w = self.segmented_canvas.winfo_width()
+        segmented_canvas_h = self.segmented_canvas.winfo_height()
+        
+        h, w = blended.shape[:2]
+        segmented_scale = min(segmented_canvas_w / w, segmented_canvas_h / h, 1)
+        new_w = int(w * segmented_scale)
+        new_h = int(h * segmented_scale)
+        
+        resized = cv2.resize(blended, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        if resized.dtype != np.uint8:
+            resized = resized.astype(np.uint8)
+        pil_img = Image.fromarray(resized)
+        self.tk_segmented = ImageTk.PhotoImage(pil_img)
+        self.segmented_canvas.delete("all")
+
+        cx = segmented_canvas_w // 2
+        cy = segmented_canvas_h // 2
+        self.segmented_canvas.create_image(cx, cy, anchor="center", image=self.tk_segmented)
+    
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("1200x660")
