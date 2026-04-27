@@ -362,11 +362,12 @@ class ROIselector:
             self.segmented_canvas.create_image(cx, cy, anchor="center", image=self.tk_segmented)
             
             area_um2 = self.calculate_area(mask)
+            area_mm2 = area_um2 / 1000000
             if area_um2 is not None:
                 self.scale_label.config(
-                    text=f"Scale: {self.px_per_um:.2f} px/µm  |  Area: {area_um2:,.1f} µm²",
+                    text=f"Scale: {self.px_per_um:.2f} px/µm  |  Area: {area_um2:,.1f} µm² or {area_mm2:,.1f} mm²",
                     fg=ACCENT)
-                print(f"Segmented area: {area_um2:,.2f} µm²")
+                print(f"Segmented area: {area_um2:,.2f} µm² or {area_mm2} mm²")
 
         except Exception as e:
             self.root.after(0, lambda: (
