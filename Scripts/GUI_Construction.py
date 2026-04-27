@@ -1,3 +1,4 @@
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import cv2
@@ -30,7 +31,7 @@ class ROIselector:
         self.scale_line   = None       
         self.scale_p1     = None       
         self.scale_p2     = None       
-        self.px_per_mm    = None
+        self.px_per_um    = None
         self.seg_method = tk.StringVar(value="all")
         self.image = None
         self.tk_image = None
@@ -103,15 +104,15 @@ class ROIselector:
         scale_input_frame = tk.Frame(btn_frame, bg=BG)
         scale_input_frame.pack(side="left", padx=4)
 
-        tk.Label(scale_input_frame, text="mm:", bg=BG, fg=TEXT,
+        tk.Label(scale_input_frame, text="um:", bg=BG, fg=TEXT,
          font=("Segoe UI", 10)).pack(side="left")
 
-        self.mm_entry = tk.Entry(scale_input_frame, width=6,
+        self.um_entry = tk.Entry(scale_input_frame, width=6,
                          bg=CARD, fg=TEXT, insertbackground=TEXT,
                          font=("Segoe UI", 10), relief="flat")
-        self.mm_entry.pack(side="left", ipady=4, padx=(2, 0))
+        self.um_entry.pack(side="left", ipady=4, padx=(2, 0))
 
-        self.scale_label = tk.Label(btn_frame, text="Scale: px/mm",
+        self.scale_label = tk.Label(btn_frame, text="Scale: px/um",
                                     bg=BG, fg=MUTED,
                                     font=("Segoe UI", 9))
         self.scale_label.pack(side="left", padx=10)
@@ -159,6 +160,11 @@ class ROIselector:
                                   anchor="nw", image=self.tk_image)
 
     def on_click(self, event):
+        if self.scale_mode:
+            self.scale_p1 = (event.x, event.y)
+            if self.scale_line:
+                self.canvas.delete(self.scale_line)
+            return
         self.start_x = event.x
         self.start_y = event.y
 
@@ -170,6 +176,15 @@ class ROIselector:
         
 
     def on_drag(self, event):
+        if self.scale_mode and self.scale_p1:
+            if self.scale_line:
+                self.canvas.delete(self.scale_line)
+            self.scale_line = self.canvas.create_line(
+                self.scale_p1[0], self.scale_p1[1],
+                event.x, event.y,
+                fill="yellow", width=2, dash=(4, 2))
+            return
+      
         self.canvas.coords(
             self.rect,
             self.start_x, self.start_y,
@@ -177,6 +192,13 @@ class ROIselector:
         )
 
     def on_release(self, event):
+        if self.scale_mode and self.scale_p1:
+            self.scale_p2 = (event.x, event.y)
+            self._compute_scale()   # FIX 3: calcular escala
+            return
+        
+        if self.image is None:
+            return       
         end_x, end_y = event.x, event.y
         x1 = int((min(self.start_x, end_x) - self.img_offset_x) / self.display_scale)
         y1 = int((min(self.start_y, end_y) - self.img_offset_y) / self.display_scale)
@@ -220,6 +242,7 @@ class ROIselector:
         filepath = os.path.join(directory, filepath)
         cv2.imwrite(filepath, self.current_roi)
         print(f"image{name} saved")
+   
     @staticmethod  
     def build_model():
         return smp.Unet(
@@ -267,7 +290,7 @@ class ROIselector:
     #    plt.tight_layout()
     #    plt.show()
 
-        return blended
+        return blended, mask
     def segment_xylem(self, model_path=r"C:\Users\jandr\OneDrive - Universidad del rosario\Gui_xylem\xylem_unet.pth", threshold=0.5):    
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -306,15 +329,19 @@ class ROIselector:
     #    plt.tight_layout()
     #    plt.show()
 
-        return blended
+        return blended, mask
     
     def show_segmented(self):
+
+        if self.current_roi is None:
+            messagebox.showwarning("No ROI", "Select a ROI first")
+            return
+
         try:
             method = self.seg_method.get()
-            if method == "all":
-                blended = self.segment_all()
-            else:
-                blended = self.segment_xylem()
+            blended, mask = self.segment_all() if method == "all" else self.segment_xylem()
+            self.root.update_idletasks()
+
             segmented_canvas_w = self.segmented_canvas.winfo_width()
             segmented_canvas_h = self.segmented_canvas.winfo_height()
             
@@ -334,14 +361,22 @@ class ROIselector:
             cy = segmented_canvas_h // 2
             self.segmented_canvas.create_image(cx, cy, anchor="center", image=self.tk_segmented)
             
+            area_um2 = self.calculate_area(mask)
+            if area_um2 is not None:
+                self.scale_label.config(
+                    text=f"Scale: {self.px_per_um:.2f} px/µm  |  Area: {area_um2:,.1f} µm²",
+                    fg=ACCENT)
+                print(f"Segmented area: {area_um2:,.2f} µm²")
+
         except Exception as e:
-            self.after(0, lambda: (
+            self.root.after(0, lambda: (
                 self.progress.stop(),
                 self.status_text.set(f"Error: {e}"),
                 messagebox.showerror("Analysis error", str(e))
             )) 
     def start_scale_mode(self):
-        assert self.image is not None, f"Load an image first"
+        messagebox.showinfo("Scale value","Please enter um value before drawing scale")
+        assert self.image is not None, f"Loa d an image first"
         self.scale_mode = True
         self.scale_p1   = None
         self.scale_p2   = None
@@ -349,6 +384,53 @@ class ROIselector:
             self.canvas.delete(self.scale_line)
         self.btn_scale.config(text="Drawing... (click & drag)", bg="#ff6b6b")
         self.canvas.config(cursor="tcross")
+
+    def _compute_scale(self):
+        um_text = self.um_entry.get().strip()
+        if not um_text:
+            messagebox.showwarning("Missing value", "Enter um value in the entry field")
+            self._reset_scale_mode()
+            return
+        try:
+            um = float(um_text)
+        except ValueError:
+            messagebox.showerror("Invalid value", "um must be a number")
+            self._reset_scale_mode()
+            return
+        dx = self.scale_p2[0] - self.scale_p1[0]
+        dy = self.scale_p2[1] - self.scale_p1[1]
+        px_canvas = np.sqrt(dx**2 + dy**2)
+        px_real   = px_canvas / self.display_scale
+        self.px_per_um = px_real / um
+
+        self.scale_label.config(text=f"Scale: {self.px_per_um:.2f} px/um", fg=ACCENT)
+
+        # Dibuja línea definitiva + etiqueta
+        self.canvas.delete(self.scale_line)
+        self.scale_line = self.canvas.create_line(
+            self.scale_p1[0], self.scale_p1[1],
+            self.scale_p2[0], self.scale_p2[1],
+            fill="green", width=2)
+        mx = (self.scale_p1[0] + self.scale_p2[0]) // 2
+        my = (self.scale_p1[1] + self.scale_p2[1]) // 2 - 10
+        self.canvas.create_text(mx, my, text=f"{um} um",
+                                 fill="yellow", font=("Segoe UI", 9, "bold"))
+        self._reset_scale_mode()
+        print(f"Scale set: {self.px_per_um:.4f} px/um")
+        
+    def _reset_scale_mode(self):
+        self.scale_mode = False
+        self.btn_scale.config(text="Set Scale", bg=ACCENT)
+        self.canvas.config(cursor="cross")
+   
+    def calculate_area(self, mask):
+        if self.px_per_um is None:
+            messagebox.showwarning("No scale", "Set the scale first (Set Scale button)")
+            return None
+
+        pixel_count   = int(np.sum(mask))         
+        area_um2      = pixel_count / (self.px_per_um ** 2)
+        return area_um2
 
 
 if __name__ == "__main__":
