@@ -84,7 +84,7 @@ class ROIselector:
         
 
         ttk.Combobox(btn_frame, textvariable=self.seg_method,
-                                   values=["all", "Xylem"],
+                                   values=["all", "Xylem", "circles"],
                                    state="readonly", width=14,
                                    font=("Courier New", 9)
                                    ).pack(side="left")
@@ -331,6 +331,46 @@ class ROIselector:
 
         return blended, mask
     
+    def segment_circles(self, model_path=r"C:\Users\jandr\OneDrive - Universidad del rosario\Gui_xylem\circles_unet.pth", threshold=0.5):    
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        model = self.build_model().to(device)
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+
+        img = self.current_roi.copy()   
+        if img.dtype == np.uint16:
+            img = (img / 256).astype(np.uint8)
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        
+
+        h, w = img.shape[:2]
+
+        tf  = A.Compose([A.Resize(512, 512), A.Normalize(), ToTensorV2()])
+        inp = tf(image=img)["image"].unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            prob = torch.sigmoid(model(inp))[0, 0].cpu().numpy()
+
+        # Devuelve al tamaño original
+        prob_full = cv2.resize(prob, (w, h))
+        mask      = (prob_full > threshold).astype(np.uint8)
+
+        # Overlay: vasos en verde sobre la imagen
+        overlay = img.copy()
+        overlay[mask == 1] = [0, 220, 120]
+        blended = cv2.addWeighted(img, 0.6, overlay, 0.4, 0)
+
+    #    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    #    axes[0].imshow(img);         axes[0].set_title("Original");         axes[0].axis("off")
+    #    axes[1].imshow(mask, cmap="gray"); axes[1].set_title("Predicted mask"); axes[1].axis("off")
+    #    axes[2].imshow(blended);     axes[2].set_title("Overlay");          axes[2].axis("off")
+    #    plt.tight_layout()
+    #    plt.show()
+
+        return blended, mask
+    
     def show_segmented(self):
 
         if self.current_roi is None:
@@ -339,7 +379,16 @@ class ROIselector:
 
         try:
             method = self.seg_method.get()
-            blended, mask = self.segment_all() if method == "all" else self.segment_xylem()
+            if method == "all":
+                blended, mask = self.segment_all()
+            elif method == "Xylem":
+                 blended, mask = self.segment_xylem()
+            elif method == "circles": 
+                 blended, mask = self.segment_circles()
+            #elif method == "internal":
+             #   blended, mask = self.segment_internal
+            else:
+                return
             self.root.update_idletasks()
 
             segmented_canvas_w = self.segmented_canvas.winfo_width()
@@ -362,12 +411,11 @@ class ROIselector:
             self.segmented_canvas.create_image(cx, cy, anchor="center", image=self.tk_segmented)
             
             area_um2 = self.calculate_area(mask)
-            area_mm2 = area_um2 / 1000000
             if area_um2 is not None:
                 self.scale_label.config(
-                    text=f"Scale: {self.px_per_um:.2f} px/µm  |  Area: {area_um2:,.1f} µm² or {area_mm2:,.1f} mm²",
+                    text=f"Scale: {self.px_per_um:.2f} px/µm  |  Area: {area_um2:,.1f} µm²",
                     fg=ACCENT)
-                print(f"Segmented area: {area_um2:,.2f} µm² or {area_mm2} mm²")
+                print(f"Segmented area: {area_um2:,.2f} µm²")
 
         except Exception as e:
             self.root.after(0, lambda: (
@@ -376,7 +424,7 @@ class ROIselector:
                 messagebox.showerror("Analysis error", str(e))
             )) 
     def start_scale_mode(self):
-        messagebox.showinfo("Scale value","Please enter um value before drawing scale")
+        messagebox.showinfo("Scale value","Please enter µm value before drawing scale")
         assert self.image is not None, f"Loa d an image first"
         self.scale_mode = True
         self.scale_p1   = None
@@ -389,13 +437,13 @@ class ROIselector:
     def _compute_scale(self):
         um_text = self.um_entry.get().strip()
         if not um_text:
-            messagebox.showwarning("Missing value", "Enter um value in the entry field")
+            messagebox.showwarning("Missing value", "Enter µm value in the entry field")
             self._reset_scale_mode()
             return
         try:
             um = float(um_text)
         except ValueError:
-            messagebox.showerror("Invalid value", "um must be a number")
+            messagebox.showerror("Invalid value", "µm must be a number")
             self._reset_scale_mode()
             return
         dx = self.scale_p2[0] - self.scale_p1[0]
@@ -404,7 +452,7 @@ class ROIselector:
         px_real   = px_canvas / self.display_scale
         self.px_per_um = px_real / um
 
-        self.scale_label.config(text=f"Scale: {self.px_per_um:.2f} px/um", fg=ACCENT)
+        self.scale_label.config(text=f"Scale: {self.px_per_um:.2f} px/µm", fg=ACCENT)
 
         # Dibuja línea definitiva + etiqueta
         self.canvas.delete(self.scale_line)
@@ -414,10 +462,10 @@ class ROIselector:
             fill="green", width=2)
         mx = (self.scale_p1[0] + self.scale_p2[0]) // 2
         my = (self.scale_p1[1] + self.scale_p2[1]) // 2 - 10
-        self.canvas.create_text(mx, my, text=f"{um} um",
+        self.canvas.create_text(mx, my, text=f"{um} µm",
                                  fill="yellow", font=("Segoe UI", 9, "bold"))
         self._reset_scale_mode()
-        print(f"Scale set: {self.px_per_um:.4f} px/um")
+        print(f"Scale set: {self.px_per_um:.4f} px/µm")
         
     def _reset_scale_mode(self):
         self.scale_mode = False
