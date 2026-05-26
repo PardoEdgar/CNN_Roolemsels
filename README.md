@@ -46,8 +46,8 @@ All data and code required to reproduce the crossectional root area recognition 
 
 ------------
 ## Authors
-Edgar Alejandro Pardo Sarmiento, Universidad del Rosario
-Yessica Hoyos, Universidad del Rosario
+Edgar Alejandro Pardo Sarmiento & Yessica Hoyos
+Universidad del Rosario
 
 --------
 ## License
