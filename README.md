@@ -13,12 +13,12 @@ Here we also acquired positions of new possible tagged coral colonies using the 
 ## Contents
 - `Images/`: Crossectional root segmentation Real, ROI and Masks images.
   - `Raw/`: Non-modified pictures
-  - `ROIs_Real/`: Internal and Real World colonies and poles position datasets
-  - `Masks/`: Internal and Real World colonies and poles position datasets
-    - `Xylem/`: Internal and Real World colonies and poles position datasets 
-    - `Stele/`: Internal and Real World colonies and poles position datasets
-    - `Aerenchyme/`: Internal and Real World colonies and poles position datasets
-    - `Xylem/`: Internal and Real World colonies and poles position datasets
+  - `ROIs_Real/`: Selected region of interest from images for segmetation
+  - `Masks/`: Masks created from ROIs
+    - `Total/`: Total Masks created from ROIs
+    - `Stele/`: Stele Masks created from ROIs
+    - `Aerenchyme/`: Aerenchyme Masks created from ROIs
+    - `Xylem/`: Xylem Masks created from ROIs
 - `scripts/`: Python scripts for segmentation model and Graphical User Interface construction
 
 ---
