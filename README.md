@@ -12,7 +12,7 @@ Here we also acquired positions of new possible tagged coral colonies using the 
 ---
 ## Contents
 - `Images/`: Crossectional root segmentation Real, ROI and Masks images.
-  - `ROIs_Real/`: Internal and Real World colonies and poles position datasets
+  - `Raw/`: Non-modified pictures
   - `ROIs_Real/`: Internal and Real World colonies and poles position datasets
   - `Masks/`: Internal and Real World colonies and poles position datasets
     - `Xylem/`: Internal and Real World colonies and poles position datasets 
@@ -24,11 +24,11 @@ Here we also acquired positions of new possible tagged coral colonies using the 
 ---
 ## Reproducibility
 All scripts conducted in Python and R are provided in sequential order:
- 1. `Extract_data_colonies.py`
- 2. `Mud_Map.R`
- 3. `New_colonies_data_extraction.py`
- 4. `Mud_Map_New_Colonies.R`
- 5. `Mud_Map_New_Colonies_plus_size_table.R`
+ 1. `Segmentation_model_total.py`
+ 2. `Segmentation_model_aerenchyme.py`
+ 3. `Segmentation_model_xylem.py`
+ 4. `Segmentation_model_stele.py`
+ 5. `GUI_Construction.py`
     
 ---------------
 ## Requirements
