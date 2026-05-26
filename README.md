@@ -17,7 +17,7 @@ Here we also acquired positions of new possible tagged coral colonies using the 
   - `Masks/`: Masks created from ROIs
     - `Total/`: Total Masks created from ROIs
     - `Stele/`: Stele Masks created from ROIs
-    - `Aerenchyme/`: Aerenchyme Masks created from ROIs
+    - `Aerenchyma/`: Aerenchyme Masks created from ROIs
     - `Xylem/`: Xylem Masks created from ROIs
 - `scripts/`: Python scripts for segmentation model and Graphical User Interface construction
 
