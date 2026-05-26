@@ -1,5 +1,5 @@
-# Spatial Mapping of Tagged Coral Colonies in Rohr Reef Resilience Project, Connolly Lab, 2026
-## Smithsonian Tropical Research Institute (STRI)
+# Area data extraction from crossectional root sections using segmentation through trained convolutional neural network models, Universidad del Rosario, Tropical Ecology Lab, 2026
+## Universidad del Rosario
 
 ------
 
