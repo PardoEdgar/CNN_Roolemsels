@@ -39,6 +39,13 @@ All scripts conducted in Python and R are provided in sequential order:
   - Tkinter
   - Matplotlib
   - Pandas
+  - pathlib
+  - Os
+  - Sys
+  - PIL
+  - Skimage
+  - Threading
+    
 ### FIji/ImageJ
 
 -------
