@@ -45,9 +45,9 @@ All scripts conducted in Python and R are provided in sequential order:
 All data and code required to reproduce the crossectional root area recognition presented here are included in this repository.
 
 ------------
-## Author
+## Authors
 Edgar Alejandro Pardo Sarmiento, Universidad del Rosario
-
+Yessica Hoyos, Universidad del Rosario
 
 --------
 ## License
