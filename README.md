@@ -7,6 +7,8 @@
 This repository provides a reproducible workflow for crossctional root images segmentation.
 The approach uses Python to build Graphical user interface for root vessels segmentation from transversal sections in monocots native plants. Using convolutional neural networks (CNN) U-net deep learning and design of Graphical User Interface.
 
+Built models are found in this drive folder 
+https://drive.google.com/drive/folders/18fueIGTQ1Sue_zXBPNpd9VDGy7fLwvji?usp=sharing
 
 ---
 ## Contents
