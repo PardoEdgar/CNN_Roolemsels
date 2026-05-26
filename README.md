@@ -1,4 +1,4 @@
-# Area data extraction from crossectional root sections using segmentation through trained convolutional neural network models, Universidad del Rosario, Tropical Ecology Lab, 2026
+# Metrics from crossectional root sections through trained CNN-segmentation models, Tropical Ecology Lab, 2026
 ## Universidad del Rosario
 
 ------
