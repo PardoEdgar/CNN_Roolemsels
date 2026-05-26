@@ -1,5 +1,5 @@
 # Metrics from crossectional root images through trained CNN-segmentation models, Tropical Ecology Lab, 2026
-## Universidad del Rosario
+## Universidad del Rosario, Colombia
 
 ------
 
