@@ -4,7 +4,7 @@
 ------
 
 ## Overview
-This repository provides a reproducible workflow for Spatial Mapping from 3D models and Orthomosacs built in Agisoft Metashape.
+This repository provides a reproducible workflow for crossctional root images segmentation.
 The approach combines Python and R scrips using Metashape-API to extract internal locations and convert them to Real World position with transformation matrix.
 We plotted the real world positions from tagged Coral and Poles and further edited the maps with Inkscape for better aesthetic visualization.
 Here we also acquired positions of new possible tagged coral colonies using the Orthomosaics as a map and plotted them for further and easy search in fieldtrip.
@@ -39,6 +39,7 @@ All scripts conducted in Python and R are provided in sequential order:
   - Tkinter
   - Matplotlib
   - Pandas
+### FIji/ImageJ
 
 -------
 ## Data availability
@@ -46,7 +47,7 @@ All data and code required to reproduce the crossectional root area recognition 
 
 ------------
 ## Authors
-Edgar Alejandro Pardo Sarmiento & Yessica Hoyos
+Edgar Alejandro Pardo Sarmiento & Yessica Hoyos,
 Universidad del Rosario
 
 --------
